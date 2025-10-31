@@ -108,10 +108,11 @@ namespace CorePublic.ScriptableObjects
         public string gameName;
         public Texture2D gameIcon;
         public string bundleID;
-        public string bundleVersion = "0.0.01";
+        public string bundleVersion = "1.0.0";
         public int iosBuildNumber = 1;
         public int androidVersionCode = 1;
-        public string remoteConfigEnvironmentID = "xxx_rel_xxx";
+        public string remoteConfigEnvironmentIDAndroid = "xxx_android_xxx";
+        public string remoteConfigEnvironmentIDIOS = "xxx_ios_xxx";
         public string remoteConfigEnvironmentIDDebug = "xxx_dev_xxx";
 
 #if UNITY_EDITOR
@@ -136,7 +137,7 @@ namespace CorePublic.ScriptableObjects
         {
             error = "";
             bool fieldsFull = gameName != "" && bundleID != "" && iosBuildNumber >= 0 &&
-                              remoteConfigEnvironmentID != "";
+                              remoteConfigEnvironmentIDAndroid != "" && remoteConfigEnvironmentIDIOS != "";
             if (!fieldsFull)
             {
                 error = "Reboot settings fields are not fulfilled";

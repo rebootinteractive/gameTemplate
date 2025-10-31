@@ -49,9 +49,13 @@ namespace CorePublic.Managers
                 {
                     environmentID = rebootSettings.remoteConfigEnvironmentIDDebug;
                 }
-                else
+                else if (Application.platform == RuntimePlatform.Android)
                 {
-                    environmentID = rebootSettings.remoteConfigEnvironmentID;    
+                    environmentID = rebootSettings.remoteConfigEnvironmentIDAndroid;    
+                }
+                else if (Application.platform == RuntimePlatform.IPhonePlayer)
+                {
+                    environmentID = rebootSettings.remoteConfigEnvironmentIDIOS;
                 }
             }
             else
