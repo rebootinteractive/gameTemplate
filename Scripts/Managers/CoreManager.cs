@@ -370,7 +370,7 @@ namespace CorePublic.Managers
         public string GetStats()
         {
             var stats = "";
-            stats += "v " + Application.version;
+            stats += "v " + Application.version + "_" + Application.buildGUID;
             stats += "\nGame State: " + GameState;
             stats += "\nLevel: " + Level;
 
