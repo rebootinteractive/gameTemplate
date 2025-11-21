@@ -3,6 +3,7 @@ using System.Collections;
 using CorePublic.CurrencySystem;
 using CorePublic.Helpers;
 using CorePublic.Interfaces;
+using CorePublic.ScriptableObjects;
 using UnityEngine;
 
 namespace CorePublic.Managers
@@ -81,12 +82,13 @@ namespace CorePublic.Managers
         /// <summary>
         /// The number of times the game has been lost in current level.
         /// </summary>
-        public int LostCounter {
+        public int LostCounter
+        {
             get => PlayerPrefs.GetInt("LostCounter", 0);
             private set => PlayerPrefs.SetInt("LostCounter", value);
         }
 
-        public int ReviveCounter {get; private set;}
+        public int ReviveCounter { get; private set; }
 
         protected override void Awake()
         {
@@ -180,7 +182,7 @@ namespace CorePublic.Managers
             GameState = GameStates.Win;
             LastSavedGameState = GameState;
             GlobalActions.OnGameWin?.Invoke();
-            GlobalActions.OnGameEnded?.Invoke();            
+            GlobalActions.OnGameEnded?.Invoke();
         }
 
         public void LostGame()
@@ -363,14 +365,22 @@ namespace CorePublic.Managers
         }
 
         [ContextMenu("Release Instance")]
-        public new void ReleaseInstance(){
+        public new void ReleaseInstance()
+        {
             base.ReleaseInstance();
         }
 
         public string GetStats()
         {
             var stats = "";
-            stats += "v " + Application.version + "_" + Application.buildGUID;
+            stats += "v " + Application.version;
+
+#if UNITY_ANDROID
+            stats += "_" + RebootSettings.Instance.androidVersionCode;
+#elif UNITY_IOS
+            stats += "_"+RebootSettings.Instance.iosBuildNumber;
+#endif
+
             stats += "\nGame State: " + GameState;
             stats += "\nLevel: " + Level;
 
