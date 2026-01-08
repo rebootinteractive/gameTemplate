@@ -56,6 +56,16 @@ namespace CorePublic.LevelDesignComponents
             }
         }
 
+        public Vector3 GetElementPositionWithCustomChildCount(int index, int count)
+        {
+            _gridSize = CalculateGridSize(count);
+            Vector3 pivotOffset = CalculatePivotOffset(_gridSize);
+            Vector3 step = cellSize + spacing;
+            Vector3 dir = GetDirectionVector();
+            Vector3 basePos = Vector3.Scale(GetGridIndex(index), step) - pivotOffset;
+            return Vector3.Scale(basePos, dir);
+        }
+
         public Vector3 GetElementPosition(int index)
         {
             int childCount = transform.childCount;
