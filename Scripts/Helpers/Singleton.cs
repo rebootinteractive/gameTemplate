@@ -44,7 +44,11 @@ namespace CorePublic.Helpers
             if (_instance == null)
             {
                 _instance = this as T;
-                if (dontDestroyOnLoad) DontDestroyOnLoad(gameObject);
+                if (dontDestroyOnLoad) {
+                    transform.SetParent(null);
+                    DontDestroyOnLoad(gameObject);
+                    Debug.Log($"DontDestroyOnLoad: {gameObject.name}");
+                }
             }
             else
             {
