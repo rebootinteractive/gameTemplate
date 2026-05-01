@@ -107,7 +107,8 @@ namespace CorePublic.ScriptableObjects
 
         public string gameName;
         public Texture2D gameIcon;
-        public string bundleID;
+        public string androidBundleID;
+        public string iosBundleID="com.reboot.testgames";
         public string bundleVersion = "1.0.0";
         public int iosBuildNumber = 1;
         public int androidVersionCode = 1;
@@ -120,8 +121,8 @@ namespace CorePublic.ScriptableObjects
         {
             PlayerSettings.companyName = "Reboot Interactive";
             PlayerSettings.productName = gameName;
-            PlayerSettings.SetApplicationIdentifier(BuildTargetGroup.iOS, bundleID);
-            PlayerSettings.SetApplicationIdentifier(BuildTargetGroup.Android, bundleID);
+            PlayerSettings.SetApplicationIdentifier(BuildTargetGroup.iOS, iosBundleID);
+            PlayerSettings.SetApplicationIdentifier(BuildTargetGroup.Android, androidBundleID);
             PlayerSettings.bundleVersion = bundleVersion;
             PlayerSettings.Android.bundleVersionCode = androidVersionCode;            
             PlayerSettings.iOS.buildNumber = iosBuildNumber.ToString();
@@ -136,7 +137,7 @@ namespace CorePublic.ScriptableObjects
         public bool ReadyToBuild(out string error)
         {
             error = "";
-            bool fieldsFull = gameName != "" && bundleID != "" && iosBuildNumber >= 0 &&
+            bool fieldsFull = gameName != "" && androidBundleID != "" && iosBundleID != "" && iosBuildNumber >= 0 &&
                               remoteConfigEnvironmentIDAndroid != "" && remoteConfigEnvironmentIDIOS != "";
             if (!fieldsFull)
             {
@@ -146,8 +147,8 @@ namespace CorePublic.ScriptableObjects
 
             if (PlayerSettings.companyName != "Reboot Interactive" ||
                 PlayerSettings.productName != gameName ||
-                PlayerSettings.GetApplicationIdentifier(BuildTargetGroup.iOS) != bundleID ||
-                PlayerSettings.GetApplicationIdentifier(BuildTargetGroup.Android) != bundleID ||
+                PlayerSettings.GetApplicationIdentifier(BuildTargetGroup.iOS) != iosBundleID ||
+                PlayerSettings.GetApplicationIdentifier(BuildTargetGroup.Android) != androidBundleID ||
                 PlayerSettings.Android.bundleVersionCode != androidVersionCode ||
                 PlayerSettings.iOS.buildNumber != iosBuildNumber.ToString() ||
                 PlayerSettings.bundleVersion != bundleVersion ||
