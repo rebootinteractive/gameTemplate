@@ -23,6 +23,13 @@ namespace CorePublic.Helpers
         {
             get
             {
+#if UNITY_EDITOR
+                // Never cache in edit mode: with domain reload disabled (Enter Play
+                // Mode Options) the static survives into play mode still pointing at
+                // the live scene object, so Awake would treat the real singleton as a
+                // duplicate and destroy it.
+                if (!Application.isPlaying) return FindObjectOfType<T>();
+#endif
                 if (_instance == null) _instance = FindObjectOfType<T>();
 
                 return _instance;
@@ -41,7 +48,10 @@ namespace CorePublic.Helpers
         /// </summary>
         protected virtual void Awake()
         {
-            if (_instance == null)
+            // _instance == this happens when the static already points at this very
+            // object (e.g. it was resolved before Awake ran, or survived a play-mode
+            // transition without domain reload) — that is not a duplicate.
+            if (_instance == null || _instance == this)
             {
                 _instance = this as T;
                 if (dontDestroyOnLoad) {
@@ -99,7 +109,10 @@ namespace CorePublic.Helpers
 
         public void OnDestroy()
         {
-            ReleaseInstance();
+            // Quiet release: destroyed duplicates must not warn, and the static must
+            // always be cleared for the real instance so it can't leak across play
+            // sessions when domain reload is disabled.
+            if (_instance == this) _instance = null;
         }
 
         #endregion
