@@ -1,7 +1,31 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace CorePublic.Helpers
 {
+    /// <summary>
+    ///     Clears every Singleton&lt;T&gt; static instance at the start of each play session.
+    ///     Needed because [RuntimeInitializeOnLoadMethod] is never invoked on open generic
+    ///     types, and because statics survive between play sessions when
+    ///     "Enter Play Mode Options > Reload Domain" is disabled.
+    /// </summary>
+    internal static class SingletonStaticReset
+    {
+        private static readonly List<Action> Resetters = new List<Action>();
+
+        internal static void Register(Action resetter)
+        {
+            Resetters.Add(resetter);
+        }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetAll()
+        {
+            for (var i = 0; i < Resetters.Count; i++) Resetters[i].Invoke();
+        }
+    }
+
     public abstract class Singleton<T> : MonoBehaviour where T : Component
     {
         #region Fields
@@ -11,9 +35,25 @@ namespace CorePublic.Helpers
         /// </summary>
         private static T _instance;
 
+        /// <summary>
+        ///     Set when this component lost the race in Awake and is being destroyed as a
+        ///     duplicate. A duplicate must never clear the surviving static instance.
+        /// </summary>
+        private bool _isDuplicate;
+
         #endregion
 
         #region Properties
+
+        /// <summary>
+        ///     Registers this closed generic type's reset hook exactly once per domain.
+        ///     Declaring an explicit static constructor also removes beforefieldinit, so this
+        ///     runs before the first access to _instance.
+        /// </summary>
+        static Singleton()
+        {
+            SingletonStaticReset.Register(() => _instance = null);
+        }
 
         /// <summary>
         ///     Gets the instance.
@@ -23,15 +63,19 @@ namespace CorePublic.Helpers
         {
             get
             {
-#if UNITY_EDITOR
-                // Never cache in edit mode: with domain reload disabled (Enter Play
-                // Mode Options) the static survives into play mode still pointing at
-                // the live scene object, so Awake would treat the real singleton as a
-                // duplicate and destroy it.
-                if (!Application.isPlaying) return FindObjectOfType<T>();
-#endif
-                if (_instance == null) _instance = FindObjectOfType<T>();
+                if (_instance != null) return _instance;
 
+                var found = FindObjectOfType<T>();
+
+#if UNITY_EDITOR
+                // Never cache outside play mode. An editor tool or custom inspector touching
+                // Instance would otherwise pin the static to an edit-mode object, which then
+                // survives into play mode when Reload Domain is disabled and makes Awake
+                // destroy the real manager as a "duplicate".
+                if (!Application.isPlaying) return found;
+#endif
+
+                _instance = found;
                 return _instance;
             }
         }
@@ -48,23 +92,26 @@ namespace CorePublic.Helpers
         /// </summary>
         protected virtual void Awake()
         {
-            // _instance == this happens when the static already points at this very
-            // object (e.g. it was resolved before Awake ran, or survived a play-mode
-            // transition without domain reload) — that is not a duplicate.
-            if (_instance == null || _instance == this)
+            // _instance == this is legitimate re-entry: with "Reload Scene" disabled the very
+            // same GameObject is reused across play sessions, so the static may already point
+            // at us. Only a different, still-alive object is a real duplicate.
+            if (_instance != null && _instance != this)
             {
-                _instance = this as T;
-                if (dontDestroyOnLoad) {
-                    transform.SetParent(null);
-                    DontDestroyOnLoad(gameObject);
-                    Debug.Log($"DontDestroyOnLoad: {gameObject.name}");
-                }
-            }
-            else
-            {
-                Debug.LogWarning($"There is already an instance of {typeof(T).Name} in the scene. Destroying the new instance.");
+                _isDuplicate = true;
+                Debug.LogWarning(
+                    $"There is already an instance of {typeof(T).Name} in the scene. Destroying the new instance.");
                 if (destroyGameObjectOnDestroy) Destroy(gameObject);
                 else Destroy(this);
+                return;
+            }
+
+            _instance = this as T;
+
+            if (dontDestroyOnLoad)
+            {
+                transform.SetParent(null);
+                DontDestroyOnLoad(gameObject);
+                Debug.Log($"DontDestroyOnLoad: {gameObject.name}");
             }
         }
 
@@ -87,32 +134,37 @@ namespace CorePublic.Helpers
             return _instance;
         }
 
-        public bool IsInstace(){
+        public bool IsInstace()
+        {
             Debug.Log($"IsInstace: {_instance == this}");
             return _instance == this;
         }
 
         public void ReleaseInstance()
         {
-            if(_instance == null){
+            // A duplicate never owned the static, so it has nothing to release. Returning
+            // silently removes the "but it is not the instance" spam on every scene load.
+            if (_isDuplicate) return;
+
+            if (_instance == null)
+            {
                 Debug.LogWarning($"Instance of {typeof(T).Name} is null");
                 return;
             }
+
             if (_instance == this)
             {
                 _instance = null;
-            }else{
+            }
+            else
+            {
                 Debug.LogWarning($"Trying to release instance of {typeof(T).Name} but it is not the instance");
             }
         }
 
-
         public void OnDestroy()
         {
-            // Quiet release: destroyed duplicates must not warn, and the static must
-            // always be cleared for the real instance so it can't leak across play
-            // sessions when domain reload is disabled.
-            if (_instance == this) _instance = null;
+            ReleaseInstance();
         }
 
         #endregion
