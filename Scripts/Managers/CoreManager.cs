@@ -172,7 +172,9 @@ namespace CorePublic.Managers
 
         public void WinGame()
         {
-            if (!IsGameStarted)
+            // A paused game is still in progress: gameplay that keeps running under a pause
+            // panel can finish the level, and that result must not be dropped.
+            if (GameState != GameStates.InGame && GameState != GameStates.Pause)
             {
                 Debug.LogError("Gameplay is not started you can not trigger win game action");
                 return;
@@ -192,7 +194,7 @@ namespace CorePublic.Managers
 
         public void LostGame(Enum reason)
         {
-            if (!IsGameStarted)
+            if (GameState != GameStates.InGame && GameState != GameStates.Pause)
             {
                 Debug.LogError("Gameplay is not started you can not trigger lost game action");
                 return;
