@@ -4,9 +4,15 @@ using UnityEngine;
 
 namespace CorePublic.Helpers
 {
-    public abstract class AnalyticInitializer: MonoBehaviour, IPrerequisite
+    /// <summary>
+    /// One step of the startup chain: initializes an SDK (analytics, ads, consent, ...)
+    /// after its <see cref="dependencies"/> are initialized. As an <see cref="IPrerequisite"/>
+    /// it holds the game start until <see cref="IsInitialized"/> returns true.
+    /// Renamed from AnalyticInitializer in 0.4.0.
+    /// </summary>
+    public abstract class SdkInitializer: MonoBehaviour, IPrerequisite
     {
-        public AnalyticInitializer[] dependencies;
+        public SdkInitializer[] dependencies;
         public bool initializeAtStart = true;
         public abstract bool IsInitialized();
         public abstract void Initialize();
@@ -15,7 +21,7 @@ namespace CorePublic.Helpers
         {
             if (initializeAtStart)
             {
-                foreach (AnalyticInitializer dependency in dependencies)
+                foreach (SdkInitializer dependency in dependencies)
                 {
                     while (!dependency.IsInitialized())
                     {
