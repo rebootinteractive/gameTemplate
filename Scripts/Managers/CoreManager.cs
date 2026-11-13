@@ -30,7 +30,32 @@ namespace CorePublic.Managers
 
         public GameStates GameState { get; private set; } = GameStates.Idle;
 
+        /// <summary>
+        /// True only while the level is being played (state InGame). <b>False while paused</b>,
+        /// e.g. while the Settings panel is open. To ask "is this level still running",
+        /// use <see cref="IsLevelInProgress"/>; to end a level, just call <see cref="WinGame"/>
+        /// or <see cref="LostGame(Enum)"/> without checking this first.
+        /// </summary>
         public bool IsGameStarted => GameState == GameStates.InGame;
+
+        /// <summary>True while a level is running, playing or paused (InGame or Pause).</summary>
+        public bool IsLevelInProgress => GameState == GameStates.InGame || GameState == GameStates.Pause;
+
+        private enum PendingResult
+        {
+            None,
+            Win,
+            Lost
+        }
+
+        private PendingResult _pendingResult = PendingResult.None;
+        private Enum _pendingLostReason;
+
+        /// <summary>
+        /// True when a win or loss was called while the game was paused. It's applied on
+        /// <see cref="ResumeGame"/>, and dropped by <see cref="ExitGame"/> or a new start.
+        /// </summary>
+        public bool HasPendingResult => _pendingResult != PendingResult.None;
 
         private bool _hasLevelManager;
 
@@ -148,6 +173,7 @@ namespace CorePublic.Managers
                 return;
             }
 
+            ClearPendingResult();
             ReviveCounter = 0;
             GameState = GameStates.InGame;
             LastSavedGameState = GameState;
@@ -170,11 +196,20 @@ namespace CorePublic.Managers
             StartGame();
         }
 
+        /// <summary>
+        /// Wins the level. While paused (e.g. Settings is open), the win is kept pending and
+        /// applied when the game resumes, so the player sees it after closing the panel.
+        /// Call it without checking <see cref="IsGameStarted"/> first: that is false while paused.
+        /// </summary>
         public void WinGame()
         {
-            // A paused game is still in progress: gameplay that keeps running under a pause
-            // panel can finish the level, and that result must not be dropped.
-            if (GameState != GameStates.InGame && GameState != GameStates.Pause)
+            if (GameState == GameStates.Pause)
+            {
+                SetPendingResult(PendingResult.Win, null);
+                return;
+            }
+
+            if (GameState != GameStates.InGame)
             {
                 Debug.LogError("Gameplay is not started you can not trigger win game action");
                 return;
@@ -192,9 +227,19 @@ namespace CorePublic.Managers
             LostGame(null);
         }
 
+        /// <summary>
+        /// Loses the level. While paused, the loss is kept pending and applied on resume,
+        /// like <see cref="WinGame"/>.
+        /// </summary>
         public void LostGame(Enum reason)
         {
-            if (GameState != GameStates.InGame && GameState != GameStates.Pause)
+            if (GameState == GameStates.Pause)
+            {
+                SetPendingResult(PendingResult.Lost, reason);
+                return;
+            }
+
+            if (GameState != GameStates.InGame)
             {
                 Debug.LogError("Gameplay is not started you can not trigger lost game action");
                 return;
@@ -229,6 +274,7 @@ namespace CorePublic.Managers
                 return;
             }
 
+            // A win or loss that was waiting for the resume no longer applies.
             SetStateToIdle();
 
             GlobalActions.OnGameExit?.Invoke();
@@ -259,6 +305,34 @@ namespace CorePublic.Managers
             GameState = GameStates.InGame;
             LastSavedGameState = GameState;
             GlobalActions.OnGameResumed?.Invoke();
+
+            // Apply a win or loss that happened while paused. A resume listener may already
+            // have ended or paused the level again; only apply while still in game.
+            var pending = _pendingResult;
+            var reason = _pendingLostReason;
+            ClearPendingResult();
+            if (GameState != GameStates.InGame) return;
+            if (pending == PendingResult.Win) WinGame();
+            else if (pending == PendingResult.Lost) LostGame(reason);
+        }
+
+        private void SetPendingResult(PendingResult result, Enum lostReason)
+        {
+            if (_pendingResult != PendingResult.None)
+            {
+                Debug.LogWarning("A " + _pendingResult + " is already pending; ignoring " + result);
+                return;
+            }
+
+            _pendingResult = result;
+            _pendingLostReason = lostReason;
+            Debug.Log("Game is paused: " + result + " will be applied when the game resumes");
+        }
+
+        private void ClearPendingResult()
+        {
+            _pendingResult = PendingResult.None;
+            _pendingLostReason = null;
         }
 
         public void EarnMoney(float amount, string reason = "")
@@ -276,6 +350,7 @@ namespace CorePublic.Managers
 
         public void SetStateToIdle()
         {
+            ClearPendingResult();
             GameState = GameStates.Idle;
             LastSavedGameState = GameState;
         }
